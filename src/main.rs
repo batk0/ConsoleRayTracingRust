@@ -5,29 +5,36 @@ use functions::*;
 use std::time::Instant;
 use vec2::Vec2;
 use vec3::Vec3;
-extern crate term_size;
+extern crate console;
+use console::Term;
+extern crate crossterm;
+use std::io::stdout;
+use crossterm::{
+    cursor::{Hide, MoveTo, Show},
+    queue,
+    terminal::{EnterAlternateScreen, LeaveAlternateScreen},
+    style::Print, execute,
+};
 
 fn main() {
-    let mut width = 120usize;
-    let mut height = 30usize;
-    if let Some((w, h)) = term_size::dimensions() {
-        println!("Width: {}\nHeight: {}", w, h);
-        width = w;
-        height = h;
-    }
+    // let mut width = 120usize;
+    // let mut height = 30usize;
+    let mut out = stdout();
+    let (height, width) = Term::buffered_stdout().size();
+    let (height, width) = (height as usize, width as usize);
+    queue!(out, Hide, EnterAlternateScreen);
     let aspect = width as f64/ height as f64;
-    let pixel_aspect = 11f64 / 24f64;
-    let gradient = " .:!/r(l1Z4H9W8$@".as_bytes();
-    let gradient_size = gradient.len() - 2;
-
-    let mut screen = vec![' ' as u8; width * height + height];
+    let pixel_aspect = 11.0 / 24.0;
+    let gradient = " .:;!/|({$&%@".as_bytes();
+    let gradient_size = gradient.len() - 1;
+    let mut screen = vec![' ' as u8; width * height];
     for t in 0..10000 {
         let ts = Instant::now();
         // Main loop
         let light = Vec3::new((-0.5, 0.5, -1.0)).norm();
         let sphere_pos = Vec3::new((0.0, 3.0, 0.0));
-        for i in 0..width {
-            for j in 0..height {
+        for j in 0..height {
+            for i in 0..width {
                 let mut uv = Vec2::new((i, j)) / Vec2::new((width, height)) * 2.0 - 1.0;
                 uv.x *= aspect * pixel_aspect;
                 let mut ro = Vec3::new((-6.0, 0.0, 0.0));
@@ -69,13 +76,16 @@ fn main() {
                 let mut color = (diff * 20.0) as usize;
                 color = color.clamp(0,gradient_size);
                 let pixel = gradient[color];
-                screen[i+j*width] = pixel;
-                screen[(j+1) * width] = '\n' as u8;
+                if screen[i+j*width] != pixel {
+                    screen[i+j*width] = pixel;
+                    execute!(out, MoveTo(i  as u16, j as u16), Print(String::from_utf8_lossy(&[pixel])));
+                }
             }
+            // screen[(j+1) * width] = '\n' as u8;
         }
-        print!("{}", String::from_utf8_lossy(&screen));
         // Get FPS
         let ts_new = Instant::now();
-        println!("FPS: {:?}", 1000000 / ts_new.saturating_duration_since(ts).as_micros());
+        queue!(out, MoveTo(0, height as u16), Print("FPS: "), Print(1000000 / ts_new.saturating_duration_since(ts).as_micros()), Print(" "));
     }
+    queue!(out, Show, LeaveAlternateScreen);
 }
