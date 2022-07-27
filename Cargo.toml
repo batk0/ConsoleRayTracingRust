@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 console = "0.15.0"
 crossterm = "0.24.0"
+ctrlc = "3.2.2"
