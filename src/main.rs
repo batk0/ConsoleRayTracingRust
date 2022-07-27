@@ -5,9 +5,7 @@ use functions::*;
 use std::{time::Instant, process::exit};
 use vec2::Vec2;
 use vec3::Vec3;
-extern crate console;
 use console::Term;
-extern crate crossterm;
 use std::io::stdout;
 use crossterm::{
     cursor::{Hide, MoveTo, Show},
