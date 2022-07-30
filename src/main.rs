@@ -42,7 +42,7 @@ fn main() {
     loop {
         // Main loop
         let ts = Instant::now();
-        let t = ts.saturating_duration_since(ts_start).as_millis()/10;
+        let t = ts.saturating_duration_since(ts_start).as_secs_f64();
         let light = Vec3::new((-0.5, 0.5, -1.0)).norm();
         for j in 0..height {
             for i in 0..width {
@@ -52,19 +52,22 @@ fn main() {
                 let mut rd = Vec3::new((2.0, uv)).norm();
                 ro = rotate_y(ro, 0.25);
                 rd = rotate_y(rd, 0.25);
-                ro = rotate_z(ro, t as f64 * 0.01);
-                rd = rotate_z(rd, t as f64 * 0.01);
+                ro = rotate_z(ro, t);
+                rd = rotate_z(rd, t);
                 let mut diff = 1.0;
                 for _k in 0..5 {
                     let mut min_it = 99999.0;
                     let mut n = Vec3::new(0.0);
                     let mut albedo = 1.0;
-                    intersect_sphere(ro, rd, sphere1_pos, 1.0, &mut min_it, &mut n);
+                    intersect_sphere(ro, rd, 
+                        sphere1_pos,// + Vec3::new((t.sin(),t.sin(),0.0)), 
+                        1.0+((0.1) * (2.0*t).sin().powf(4.0)), 
+                        &mut min_it, &mut n);
                     intersect_sphere(ro, rd, sphere2_pos, 1.0, &mut min_it, &mut n);
                     intersect_sphere(ro, rd, sphere3_pos, 1.0, &mut min_it, &mut n);
                     intersect_sphere(ro, rd, sphere4_pos, 1.0, &mut min_it, &mut n);
                     intersec_cube(ro, rd, cube_pos, &mut min_it, &mut n);
-                    intersec_plane(ro, rd, Vec3::new(1.0), &mut min_it, &mut n, &mut albedo);
+                    intersec_plane(ro, rd, Vec3::new(2.0), &mut min_it, &mut n, &mut albedo);
                     if min_it < 99999.0 {
                         diff *= (n.dot(light) * 0.5 + 0.5) * albedo;
                         ro = ro + rd * (min_it - 0.01);
@@ -89,27 +92,27 @@ fn main() {
 }
 
 fn intersec_plane(ro: Vec3, rd: Vec3, pos: Vec3, min_it: &mut f64, n: &mut Vec3, albedo: &mut f64) {
-    let intersection = Vec2::new(plane(ro - pos, rd, Vec3::new((0.0, 0.0, -1.0)), 1.0));
-    if intersection.x > 0.0 && intersection.x < *min_it {
-        *min_it = intersection.x;
+    let intersection = plane(ro - pos, rd, Vec3::new((0.0, 0.0, -1.0)), 1.0);
+    if intersection > 0.0 && intersection < *min_it {
+        *min_it = intersection;
         *n = Vec3::new((0.0, 0.0, -1.0));
-        *albedo = 0.2;
+        *albedo = 0.5;
     }
 }
 
 fn intersec_cube(ro: Vec3, rd: Vec3, pos: Vec3, min_it: &mut f64, n: &mut Vec3) {
     let (intersection, cube_n) = cube(ro - pos, rd, Vec3::new(1.0));
-    if intersection.x > 0.0 && intersection.x < *min_it {
-        *min_it = intersection.x;
+    if intersection > 0.0 && intersection < *min_it {
+        *min_it = intersection;
         *n = cube_n;
     }
 }
 
 fn intersect_sphere(ro: Vec3, rd: Vec3, pos: Vec3, r: f64, min_it: &mut f64, n: &mut Vec3) {
     let intersection = sphere(ro - pos, rd, r);
-    if intersection.x > 0.0 && intersection.x < *min_it {
-        let it_point = ro - pos + rd * intersection.x;
-        *min_it = intersection.x;
+    if intersection > 0.0 && intersection < *min_it {
+        let it_point = ro - pos + rd * intersection;
+        *min_it = intersection;
         *n = it_point.norm();
     }
 }
