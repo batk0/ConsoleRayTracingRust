@@ -48,17 +48,22 @@ pub fn rotate_z(v: Vec3, angle: f64) -> Vec3 {
         v.z,
     ))
 }
-pub fn sphere(ro: Vec3, rd: Vec3, r: f64) -> Vec2 {
-    let b = ro.dot(rd);
+pub fn sphere(ro: Vec3, rd: Vec3, r: f64) -> f64 {
+    // Quadratic equation ax^2 + bx + c = 0
+    // Omit some coefficients below to reduce calculation complexity
+    // let a = rd.dot(rd); // a = 1 : omit
+    let b = ro.dot(rd); //  * 2.0 : will cancel in the end
     let c = ro.dot(ro) - r * r;
-    let mut h = b * b - c;
+    let mut h = b * b - c; // * 4.0 * a : a=1, 4.0 cancels with 2.0*2.0
     if h < 0.0 {
-        return Vec2::new(-1.0);
+        // No roots, ray misses the sphere
+        return -1.0;
     }
     h = h.sqrt();
-    Vec2::new((-h - b, h - b))
+    // - b ± sqrt(b - 4ac)
+    -h - b //, h - b : we don't use second root //  roots should be devided by (2.0*a), which cancels coefficients above
 }
-pub fn cube(ro: Vec3, rd: Vec3, size: Vec3) -> (Vec2, Vec3) {
+pub fn cube(ro: Vec3, rd: Vec3, size: Vec3) -> (f64, Vec3) {
     let m = Vec3::new(1.0) / rd;
     let n = m * ro;
     let k = m.abs() * size;
@@ -66,13 +71,13 @@ pub fn cube(ro: Vec3, rd: Vec3, size: Vec3) -> (Vec2, Vec3) {
     let t2 = -n + k;
     let tn = t1.x.max(t1.y).max(t1.z);
     let tf = t2.x.min(t2.y).min(t2.z);
-    if tn > tf || tf < 0.0 {
-        return (Vec2::new(-1.0), Vec3::new(0.0));
+    if tn >= tf || tf < 0.0 {
+        return (-1.0, Vec3::new(0.0));
     }
     let yzx = Vec3::new((t1.y, t1.z, t1.x));
     let zxy = Vec3::new((t1.z, t1.x, t1.y));
     (
-        Vec2::new((tn, tf)),
+        tn, // tf : we don't use second point
         -rd.sign() * yzx.step(t1) * zxy.step(t1),
     )
 }
