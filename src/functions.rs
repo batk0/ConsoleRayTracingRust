@@ -1,5 +1,3 @@
-use std::ptr::null;
-
 use super::vec3::Vec3;
 
 pub fn clamp(value: f64, fmin: f64, fmax: f64) -> f64 {
@@ -64,7 +62,7 @@ pub struct Cube {
 }
 
 impl Cube {
-    pub fn new(size: Vec3, position: Vec3, normal: Vec3) -> Box<Cube> {
+    pub fn new(size: Vec3, position: Vec3) -> Box<Cube> {
         Box::new(Cube{size, position})
     }
 }
@@ -79,7 +77,7 @@ impl Plane {
     }
 }
 
-pub(crate) trait Object: CloneObject {
+pub(crate) trait Object: CloneObject + Send {
     fn intersect(&mut self, ro: Vec3, rd: Vec3) -> (f64, Vec3);
     fn get_reflection(&mut self, ro: Vec3, rd: Vec3, min_it: &mut f64, normal: &mut Vec3, albedo: &mut f64);
 }

@@ -7,9 +7,14 @@ use crossterm::{
     execute, queue,
     style::Print,
 };
+use std::{
+    process::exit, 
+    time::Instant,
+    io::stdout,
+    thread,
+    sync::mpsc,
+};
 use functions::*;
-use std::io::stdout;
-use std::{process::exit, time::Instant};
 use vec2::Vec2;
 use vec3::Vec3;
 
@@ -26,8 +31,6 @@ struct RowParams {
     pixel_aspect: f64,
     objects: Vec<Box<dyn Object>>,
     light: Vec3,
-    j: usize,
-    t: f64,
 }
 
 const GRADIENT: &[u8] = " .:;!/|({%@$&".as_bytes();
@@ -35,12 +38,11 @@ const GRADIENT: &[u8] = " .:;!/|({%@$&".as_bytes();
 const GRADIENT_SIZE: usize = GRADIENT.len() - 1;
 
 fn main() {
-    // let mut width = 120usize;
-    // let mut height = 30usize;
-    _ = queue!(stdout(), Hide);
+    let mut fps = 0;
+    queue!(stdout(), Hide).expect("Cannot hide cursor");
     ctrlc::set_handler(move || {
         println!("received Ctrl+C!");
-        _ = execute!(stdout(), Show);
+        execute!(stdout(), Show).expect("Cannot show cursor");
         exit(0);
     }).expect("Error setting Ctrl-C handler");
 
@@ -55,57 +57,60 @@ fn main() {
         Sphere::new(1.0, Vec3::new((3.0, 0.0, 0.0))),
         Sphere::new(1.0, Vec3::new((0.0, -3.0, 0.0))),
         Sphere::new(1.0, Vec3::new((-3.0, 0.0, 0.0))),
-        Cube::new(Vec3::new(1.0), Vec3::new((0.0, 0.0, -1.0)), Vec3::new(0.0)),
+        Cube::new(Vec3::new(1.0), Vec3::new((0.0, 0.0, -1.0))),
         Plane::new(Vec3::new((0.0, 0.0, 1.0)), Vec3::new((0.0, 0.0, 2.0))),
     ];
     let ts_start = Instant::now();
-    let mut common_row_params = RowParams { width, height, aspect, pixel_aspect, objects, light, j: 0, t: 0.0 };
+    let common_row_params = RowParams { width, height, aspect, pixel_aspect, objects, light };
+    let (tx, rx): (mpsc::SyncSender<Row>, mpsc::Receiver<Row>) = mpsc::sync_channel(1);
+    thread::spawn(move || {
+        loop {
+            draw_row(rx.recv().expect("Cannot recv"))
+        }
+    });
     loop {
         // Main loop
         let ts = Instant::now();
         let t = ts.saturating_duration_since(ts_start).as_secs_f64();
-        common_row_params.t = t;
+        // common_row_params.t = t;
+        let mut rows = Vec::new();
         for j in 0..height {
-            let mut rp = common_row_params.clone();
-            rp.j = j;
-            let row = render_row(rp);
-            draw_row(row);
-            // screen[(j+1) * width] = '\n' as u8;
+            let rp = common_row_params.clone();
+            let tx = tx.clone();
+            rows.push(thread::spawn(move || {
+                // rp.j = j;
+                tx.send(render_row(rp, j, t)).expect("Cannot send Row");
+            }));            
         }
-        // Get FPS
+        for row in rows {
+            row.join().expect("Child thread paniced");
+        }
+    // Get FPS
         let ts_new = Instant::now();
-        _ = queue!(
-            stdout(),
-            MoveTo(0, height as u16),
-            Print("FPS: "),
-            Print(1000000 / ts_new.saturating_duration_since(ts).as_micros()),
-            Print(" ")
-        );
-        //_ = queue!(stdout(), MoveTo(0, height as u16 - 1),  Print(width), Print(" "), Print(height));
+        fps = (fps + 1000000 / ts_new.saturating_duration_since(ts).as_micros()) / 2;
+        tx.send(Row{line: format!("FPS: {} ", fps).as_bytes().to_vec(), n: height}).expect("Cannot send FPS");
     }
 }
 
 fn draw_row(row: Row) {
-    _ = queue!(
+    queue!(
         stdout(),
         MoveTo(0, row.n as u16),
         Print(String::from_utf8_lossy(&row.line))
-    );
+    ).expect("Cannot print line");
 }
 
-fn render_row(mut params: RowParams) -> Row {
-    let mut row = Row{line: vec![' ' as u8; params.width], n: params.j};
-    // let mut objects: &[Box<dyn Object>];
-    // objects.copy_from_slice(params.objects.as_slice());
+fn render_row(mut params: RowParams, j: usize, t: f64) -> Row {
+    let mut row = Row{line: vec![' ' as u8; params.width], n: j};
     for i in 0..params.width {
-        let mut uv = Vec2::new((i, params.j)) / Vec2::new((params.width, params.height)) * 2.0 - 1.0;
+        let mut uv = Vec2::new((i, j)) / Vec2::new((params.width, params.height)) * 2.0 - 1.0;
         uv.x *= params.aspect * params.pixel_aspect;
         let mut ro = Vec3::new((-10.0, 0.0, 0.0));
         let mut rd = Vec3::new((2.0, uv)).norm();
         ro = rotate_y(ro, 0.25);
         rd = rotate_y(rd, 0.25);
-        ro = rotate_z(ro, params.t);
-        rd = rotate_z(rd, params.t);
+        ro = rotate_z(ro, t);
+        rd = rotate_z(rd, t);
         let mut diff = 1.0;
         for _k in 0..5 {
             let mut min_it = 99999.0;
