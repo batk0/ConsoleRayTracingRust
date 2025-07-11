@@ -44,11 +44,10 @@ pub fn rotate_z(v: Vec3, angle: f64) -> Vec3 {
 
 // }
 
-
 #[derive(Clone, Copy)]
 pub struct Sphere {
     radius: f64,
-    position: Vec3
+    position: Vec3,
 }
 
 impl Sphere {
@@ -64,24 +63,31 @@ pub struct Cube {
 }
 
 impl Cube {
-    pub fn new(size: Vec3, position: Vec3, normal: Vec3) -> Box<Cube> {
-        Box::new(Cube{size, position})
+    pub fn new(size: Vec3, position: Vec3) -> Box<Cube> {
+        Box::new(Cube { size, position })
     }
 }
 #[derive(Clone, Copy)]
 pub struct Plane {
     pub normal: Vec3,
-    pub position: Vec3
+    pub position: Vec3,
 }
 impl Plane {
     pub fn new(normal: Vec3, position: Vec3) -> Box<Plane> {
-        Box::new(Plane{normal, position})
+        Box::new(Plane { normal, position })
     }
 }
 
 pub(crate) trait Object: CloneObject {
     fn intersect(&mut self, ro: Vec3, rd: Vec3) -> (f64, Vec3);
-    fn get_reflection(&mut self, ro: Vec3, rd: Vec3, min_it: &mut f64, normal: &mut Vec3, albedo: &mut f64);
+    fn get_reflection(
+        &mut self,
+        ro: Vec3,
+        rd: Vec3,
+        min_it: &mut f64,
+        normal: &mut Vec3,
+        albedo: &mut f64,
+    );
 }
 
 pub(crate) trait CloneObject {
@@ -119,7 +125,14 @@ impl Object for Sphere {
         // - b ± sqrt(b - 4ac)
         (-h - b, Vec3::new(0.0)) //, h - b : we don't use second root //  roots should be devided by (2.0*a), which cancels coefficients above
     }
-    fn get_reflection(&mut self, ro: Vec3, rd: Vec3, min_it: &mut f64, normal: &mut Vec3, _albedo: &mut f64) {
+    fn get_reflection(
+        &mut self,
+        ro: Vec3,
+        rd: Vec3,
+        min_it: &mut f64,
+        normal: &mut Vec3,
+        _albedo: &mut f64,
+    ) {
         let (intersection, _) = self.intersect(ro - self.position, rd);
         if intersection > 0.0 && intersection < *min_it {
             let it_point = ro - self.position + rd * intersection;
@@ -138,14 +151,21 @@ impl Object for Cube {
         let tn = t1.x.max(t1.y).max(t1.z);
         let tf = t2.x.min(t2.y).min(t2.z);
         if tn >= tf || tf < 0.0 {
-            return (-1.0, Vec3::new(0.0))
+            return (-1.0, Vec3::new(0.0));
         }
         let yzx = Vec3::new((t1.y, t1.z, t1.x));
         let zxy = Vec3::new((t1.z, t1.x, t1.y));
         let normal = -rd.sign() * yzx.step(t1) * zxy.step(t1);
         (tn, normal) // tf : we don't use second point
     }
-    fn get_reflection(&mut self, ro: Vec3, rd: Vec3, min_it: &mut f64, normal: &mut Vec3, _albedo: &mut f64) {
+    fn get_reflection(
+        &mut self,
+        ro: Vec3,
+        rd: Vec3,
+        min_it: &mut f64,
+        normal: &mut Vec3,
+        _albedo: &mut f64,
+    ) {
         let (intersection, n) = self.intersect(ro - self.position, rd);
         if intersection > 0.0 && intersection < *min_it {
             *min_it = intersection;
@@ -158,7 +178,14 @@ impl Object for Plane {
     fn intersect(&mut self, ro: Vec3, rd: Vec3) -> (f64, Vec3) {
         (-ro.dot(self.normal) / rd.dot(self.normal), -self.normal)
     }
-    fn get_reflection(&mut self, ro: Vec3, rd: Vec3, min_it: &mut f64, normal: &mut Vec3, albedo: &mut f64){
+    fn get_reflection(
+        &mut self,
+        ro: Vec3,
+        rd: Vec3,
+        min_it: &mut f64,
+        normal: &mut Vec3,
+        albedo: &mut f64,
+    ) {
         let (intersection, n) = self.intersect(ro - self.position, rd);
         if intersection > 0.0 && intersection < *min_it {
             *min_it = intersection;

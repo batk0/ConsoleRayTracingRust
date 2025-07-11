@@ -42,7 +42,8 @@ fn main() {
         println!("received Ctrl+C!");
         _ = execute!(stdout(), Show);
         exit(0);
-    }).expect("Error setting Ctrl-C handler");
+    })
+    .expect("Error setting Ctrl-C handler");
 
     let (height, width) = Term::buffered_stdout().size();
     let (height, width) = (height as usize, width as usize);
@@ -55,11 +56,20 @@ fn main() {
         Sphere::new(1.0, Vec3::new((3.0, 0.0, 0.0))),
         Sphere::new(1.0, Vec3::new((0.0, -3.0, 0.0))),
         Sphere::new(1.0, Vec3::new((-3.0, 0.0, 0.0))),
-        Cube::new(Vec3::new(1.0), Vec3::new((0.0, 0.0, -1.0)), Vec3::new(0.0)),
+        Cube::new(Vec3::new(1.0), Vec3::new((0.0, 0.0, -1.0))),
         Plane::new(Vec3::new((0.0, 0.0, 1.0)), Vec3::new((0.0, 0.0, 2.0))),
     ];
     let ts_start = Instant::now();
-    let mut common_row_params = RowParams { width, height, aspect, pixel_aspect, objects, light, j: 0, t: 0.0 };
+    let mut common_row_params = RowParams {
+        width,
+        height,
+        aspect,
+        pixel_aspect,
+        objects,
+        light,
+        j: 0,
+        t: 0.0,
+    };
     loop {
         // Main loop
         let ts = Instant::now();
@@ -94,11 +104,15 @@ fn draw_row(row: Row) {
 }
 
 fn render_row(mut params: RowParams) -> Row {
-    let mut row = Row{line: vec![' ' as u8; params.width], n: params.j};
+    let mut row = Row {
+        line: vec![' ' as u8; params.width],
+        n: params.j,
+    };
     // let mut objects: &[Box<dyn Object>];
     // objects.copy_from_slice(params.objects.as_slice());
     for i in 0..params.width {
-        let mut uv = Vec2::new((i, params.j)) / Vec2::new((params.width, params.height)) * 2.0 - 1.0;
+        let mut uv =
+            Vec2::new((i, params.j)) / Vec2::new((params.width, params.height)) * 2.0 - 1.0;
         uv.x *= params.aspect * params.pixel_aspect;
         let mut ro = Vec3::new((-10.0, 0.0, 0.0));
         let mut rd = Vec3::new((2.0, uv)).norm();
@@ -113,7 +127,7 @@ fn render_row(mut params: RowParams) -> Row {
             let mut albedo = 1.0;
             for obj in params.objects.iter_mut() {
                 obj.get_reflection(ro, rd, &mut min_it, &mut n, &mut albedo);
-            };
+            }
             if min_it < 99999.0 {
                 diff *= (n.dot(params.light) * 0.5 + 0.5) * albedo;
                 ro = ro + rd * (min_it - 0.01);
@@ -126,6 +140,6 @@ fn render_row(mut params: RowParams) -> Row {
         color = color.clamp(0, GRADIENT_SIZE);
         let pixel = GRADIENT[color];
         row.line[i] = pixel;
-    };
+    }
     row
 }
